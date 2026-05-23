@@ -1,0 +1,153 @@
+esphome:
+  name: desk
+  friendly_name: "Standing Desk"
+  includes:
+    - desk_controller.h
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  framework:
+    type: arduino
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "Desk-Fallback"
+    password: "12345678"
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  password: !secret ota_password
+
+substitutions:
+  pin_m: "9"
+  pin_up: "10"
+  pin_down: "11"
+  pin_1: "12"
+  pin_2: "13"
+  pin_3: "14"
+
+globals:
+  - id: target_height
+    type: float
+    restore_value: no
+    initial_value: '0.0'
+
+custom_component:
+  - id: main_desk_controller
+    lambda: |-
+      return {get_desk_controller()};
+
+sensor:
+  - platform: custom
+    lambda: |-
+      auto desk = get_desk_controller();
+      return {desk->height_sensor};
+    sensors:
+      - name: "Desk Height"
+        id: actual_height
+        unit_of_measurement: "cm"
+        accuracy_decimals: 1
+        icon: "mdi:human-male-height-variant"
+        state_class: measurement
+        force_update: true
+        on_value:
+          then:
+            - if:
+                condition:
+                  lambda: 'return id(target_height) > 0.0;'
+                then:
+                  - lambda: |-
+                      float current = x;
+                      float target = id(target_height);
+                      float diff = target - current;
+                      
+                      float stop_distance = 0.9; 
+
+                      if (diff > stop_distance) {
+                        pinMode(${pin_up}, OUTPUT); 
+                        digitalWrite(${pin_up}, LOW);
+                      } 
+                      else if (diff < -stop_distance) {
+                        pinMode(${pin_down}, OUTPUT); 
+                        digitalWrite(${pin_down}, LOW);
+                      } 
+                      else {
+                        pinMode(${pin_up}, INPUT);
+                        pinMode(${pin_down}, INPUT);
+                        id(target_height) = 0.0;
+                      }
+number:
+  - platform: template
+    name: "Target Height"
+    id: desk_slider
+    min_value: 60
+    max_value: 125
+    step: 1
+    unit_of_measurement: "cm"
+    icon: "mdi:car-seat-cooler"
+    optimistic: true
+    set_action:
+      then:
+        - lambda: |-
+            id(target_height) = x;
+            id(actual_height).publish_state(id(actual_height).state);
+
+button:
+  - platform: template
+    name: "Click M"
+    icon: "mdi:alpha-m-circle-outline"
+    on_press:
+      - lambda: 'pinMode(${pin_m}, OUTPUT); digitalWrite(${pin_m}, LOW); delay(200); pinMode(${pin_m}, INPUT);'
+
+  - platform: template
+    name: "Click M1"
+    icon: "mdi:numeric-1-circle-outline"
+    on_press:
+      - lambda: 'pinMode(${pin_1}, OUTPUT); digitalWrite(${pin_1}, LOW); delay(200); pinMode(${pin_1}, INPUT);'
+
+  - platform: template
+    name: "Click M2"
+    icon: "mdi:numeric-2-circle-outline"
+    on_press:
+      - lambda: 'pinMode(${pin_2}, OUTPUT); digitalWrite(${pin_2}, LOW); delay(200); pinMode(${pin_2}, INPUT);'
+
+  - platform: template
+    name: "Click M3"
+    icon: "mdi:numeric-3-circle-outline"
+    on_press:
+      - lambda: 'pinMode(${pin_3}, OUTPUT); digitalWrite(${pin_3}, LOW); delay(200); pinMode(${pin_3}, INPUT);'
+      
+switch:
+  - platform: template
+    name: "Hold UP"
+    id: hold_up
+    icon: "mdi:arrow-up-bold-box-outline"
+    optimistic: true
+    turn_on_action:
+      - lambda: |-
+          id(target_height) = 0.0; // Сбрасываем автоматическое движение, если оно шло
+          pinMode(${pin_down}, INPUT); // Защита от дурака: отключаем движение вниз
+          pinMode(${pin_up}, OUTPUT); 
+          digitalWrite(${pin_up}, LOW);
+    turn_off_action:
+      - lambda: 'pinMode(${pin_up}, INPUT);'
+
+  - platform: template
+    name: "Hold DOWN"
+    id: hold_down
+    icon: "mdi:arrow-down-bold-box-outline"
+    optimistic: true
+    turn_on_action:
+      - lambda: |-
+          id(target_height) = 0.0; // Сбрасываем автоматическое движение
+          pinMode(${pin_up}, INPUT); // Защита от дурака: отключаем движение вверх
+          pinMode(${pin_down}, OUTPUT); 
+          digitalWrite(${pin_down}, LOW);
+    turn_off_action:
+      - lambda: 'pinMode(${pin_down}, INPUT);'
