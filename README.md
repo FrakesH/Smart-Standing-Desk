@@ -76,3 +76,6 @@ To implement this project, you will need:
 ESPHome version 2023.12.9 was used to install the firmware!
 
 There is a directory with photos in the repository where you can examine the board from different angles.
+
+
+Tags: esphome, esp32, esp32-s3, home-assistant, standing-desk, smart-desk, sit-stand-desk, volundr, volundr-x2dm-pro, et6226m, home-automation, smart-home, diy, diy-electronics, hardware-hacking, iot, internet-of-things, desk-setup, workspace, automation, maker, reverse-engineering, capacitive-sensors, capacitive-touch, умный-стол, умный-дом, регулируемый-стол, стол-с-электроприводом, автоматизация, сделай-сам
